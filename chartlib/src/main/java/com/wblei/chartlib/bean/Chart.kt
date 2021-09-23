@@ -14,6 +14,12 @@ class Chart(context: Context?) {
   
   // 缩放比例
   var zoom: Int = 5
+    set(value) {
+      field = value
+      dataSize = value * 10
+      dataStartPos = dataEndPos - dataSize
+      stickWidth = (chartWidth - (dataSize - 1) * spaceWidth).toDouble() / dataSize
+    }
   
   // 缩放起始点
   var zoomStartPoint: Float = 0.0f
@@ -22,13 +28,13 @@ class Chart(context: Context?) {
   var dataSize: Int = zoom * 10
   
   // 数据结束的位置
-  var dataEndPos: Int = 150
+  var dataEndPos: Int = 0
     set(value) {
       field = dataSize.coerceAtLeast(dataList.size.coerceAtMost(value))
     }
   
   // 数据开始的位置
-  var dataStartPos: Int = dataEndPos - dataSize
+  var dataStartPos: Int = 0
     set(value) {
       field = 0.coerceAtLeast(value).coerceAtMost(dataList.size)
     }
@@ -38,6 +44,8 @@ class Chart(context: Context?) {
     set(value) {
       dataList.clear()
       dataList.addAll(value)
+      dataEndPos = dataList.size
+      dataStartPos = dataEndPos - dataSize
     }
   
   // 每个蜡烛图的宽度
@@ -76,6 +84,6 @@ class Chart(context: Context?) {
       max = max.coerceAtLeast(bean.close.coerceAtLeast(bean.open))
       min = min.coerceAtMost(bean.close.coerceAtMost(bean.open))
     }
-    return Pair(min - 0.16* (max - min), max + 0.16* (max - min))
+    return Pair(min - 0.5* (max - min), max + 0.5* (max - min))
   }
 }

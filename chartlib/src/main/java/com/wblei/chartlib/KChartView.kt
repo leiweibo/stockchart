@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.view.View.OnLongClickListener
 import com.wblei.chartlib.bean.Chart
 import com.wblei.chartlib.util.LogUtil
 import kotlin.math.abs
@@ -13,7 +14,7 @@ import kotlin.math.abs
 /**
  * K线图
  */
-class KChartView(context: Context?, attributes: AttributeSet) : View(context, attributes) {
+class KChartView(context: Context?, attributes: AttributeSet) : View(context, attributes), OnLongClickListener {
   
   val TAG: String = KChartView::class.java.simpleName
   
@@ -23,6 +24,8 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
   
   init {
     setBackgroundResource(android.R.color.white)
+    
+    setOnLongClickListener(this)
   }
   
   fun setupData(klineList: MutableList<Kline>) {
@@ -49,38 +52,50 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
     
     for (i in chart.dataStartPos until chart.dataEndPos) {
       val bean = chart.dataList[i]
-      val left = (i - chart.dataStartPos) * (chart.stickWidth + chart.spaceWidth)
-      val right = left + chart.stickWidth
-      val top = ChartHelper.generateY(max, min, bean.close, chart.chartHeight)
-      val bottom = ChartHelper.generateY(max, min, bean.open, chart.chartHeight)
-      
-      if (bean.close > bean.open) { // 阳线，红色不填充
-        chart.paintColor = R.color.color_ff4c4f
-        chart.paintStyle = Paint.Style.STROKE
-      } else {  // 阴线，绿色填充
-        chart.paintColor = R.color.color_1dbf69
-        chart.paintStyle = Paint.Style.FILL
+      if (chart.zoom < 10) {
+        val left = (i - chart.dataStartPos) * (chart.stickWidth + chart.spaceWidth)
+        val right = left + chart.stickWidth
+        val top = ChartHelper.generateY(max, min, bean.close, chart.chartHeight)
+        val bottom = ChartHelper.generateY(max, min, bean.open, chart.chartHeight)
+  
+        if (bean.close > bean.open) { // 阳线，红色不填充
+          chart.paintColor = R.color.color_ff4c4f
+          chart.paintStyle = Paint.Style.STROKE
+        } else {  // 阴线，绿色填充
+          chart.paintColor = R.color.color_1dbf69
+          chart.paintStyle = Paint.Style.FILL
+        }
+  
+        canvas?.drawRect(
+          left.toFloat(),
+          top.toFloat(),
+          right.toFloat(),
+          bottom.toFloat(),
+          chart.paint
+        )
+  
+        var startX = (left.toFloat() + (chart.stickWidth / 2.0f)).toFloat()
+        var startY = ChartHelper.generateY(max, min, bean.high, chart.chartHeight)
+        var stopX = startX
+        var stopY = top
+        // 画上影线
+        canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chart.paint)
+  
+        startY = bottom
+        stopY = ChartHelper.generateY(max, min, bean.low, chart.chartHeight)
+        // 画下影线
+        canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chart.paint)
+      } else {
+        if (i - chart.dataStartPos > 0) {
+          val preBean = chart.dataList[i - 1]
+          var startX = (i - chart.dataStartPos - 1) * (chart.stickWidth + chart.spaceWidth).toFloat()
+          var stopX = (i - chart.dataStartPos) * (chart.stickWidth + chart.spaceWidth).toFloat()
+          var startY = ChartHelper.generateY(max, min, preBean.close, chart.chartHeight).toFloat()
+          var stopY = ChartHelper.generateY(max, min, bean.close, chart.chartHeight).toFloat()
+          canvas?.drawLine(startX, startY, stopX, stopY, chart.paint)
+        }
       }
       
-      canvas?.drawRect(
-        left.toFloat(),
-        top.toFloat(),
-        right.toFloat(),
-        bottom.toFloat(),
-        chart.paint
-      )
-      
-      var startX = (left.toFloat() + (chart.stickWidth / 2.0f)).toFloat()
-      var startY = ChartHelper.generateY(max, min, bean.high, chart.chartHeight)
-      var stopX = startX
-      var stopY = top
-      // 画上影线
-      canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chart.paint)
-      
-      startY = bottom
-      stopY = ChartHelper.generateY(max, min, bean.low, chart.chartHeight)
-      // 画下影线
-      canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chart.paint)
     }
   }
   
@@ -120,20 +135,32 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
       }
       
       invalidate()
-    }
-    if (event?.pointerCount == 2) {
+    } else if (event?.pointerCount == 2) {
       val moveDistance = ChartHelper.calculateSpace(event)
 
       if (moveDistance < MINI_MOVE_DISTANCE) return
 
-      chart.zoom *= if (chart.zoomStartPoint > 0) {
-        (moveDistance / chart.zoomStartPoint).toInt()
-      } else  {
-        1
+      if (chart.zoomStartPoint > 0 && moveDistance > chart.zoomStartPoint) {
+        // 放大，zoom--操作
+        chart.zoom = chart.zoom - 1
+        if (chart.zoom < 1) {
+          chart.zoom = chart.zoom.coerceAtLeast(1)
+          // todo break the loop.
+        }
+      } else if (moveDistance < chart.zoomStartPoint) {
+        // 缩小，zoom++操作
+        chart.zoom = chart.zoom + 1
+        if (chart.zoom > 10) {
+          chart.zoom = chart.zoom.coerceAtMost(10)
+          // todo break the loop.
+        }
       }
       chart.zoomStartPoint = moveDistance
       invalidate()
-      LogUtil.d(TAG, "onScale $moveDistance, zoom: ${chart.zoom}")
+      LogUtil.d(
+        TAG,
+        "onScale $moveDistance, zoom: ${chart.zoom}, dataSize: ${chart.dataSize}, dataStartPos: ${chart.dataStartPos}, dataEndPos: ${chart.dataEndPos}"
+      )
     }
   }
   
@@ -142,4 +169,8 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
     chart.zoomStartPoint = 0.0f;
   }
   
+  override fun onLongClick(v: View?): Boolean {
+    LogUtil.d(TAG, "OnLong Click")
+    return true
+  }
 }
