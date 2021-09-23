@@ -19,6 +19,7 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
   
   private val chart: Chart = Chart(context)
   private var startXPos: Float = 0.0f
+  private val MINI_MOVE_DISTANCE: Int = if (width / 40 < 5) 5 else width / 50
   
   init {
     setBackgroundResource(android.R.color.white)
@@ -114,30 +115,31 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
           TAG,
           "Dragging the chart， distance: $dragDistance, dragRectCnt: $dragRectCnt, dataStartPos: ${chart.dataStartPos}, dataEndPos: ${chart.dataEndPos}"
         )
+        // 对于上次已经计算过的点，重新赋值
         startXPos = event.x
       }
       
       invalidate()
     }
-//    if (event?.pointerCount == 2) {
-//      val moveDistance = ChartHelper.calculateSpace(event)
-//
-//      if (moveDistance < MINI_MOVE_DISTANCE) return
-//
-//      zoom *= if (startPointerDistance > 0) {
-//        moveDistance / startPointerDistance
-//      } else  {
-//        1.0f
-//      }
-//      startPointerDistance = moveDistance
-//      invalidate()
-//      LogUtil.d(TAG, "onScale $moveDistance, zoom: $zoom")
-//    }
+    if (event?.pointerCount == 2) {
+      val moveDistance = ChartHelper.calculateSpace(event)
+
+      if (moveDistance < MINI_MOVE_DISTANCE) return
+
+      chart.zoom *= if (chart.zoomStartPoint > 0) {
+        (moveDistance / chart.zoomStartPoint).toInt()
+      } else  {
+        1
+      }
+      chart.zoomStartPoint = moveDistance
+      invalidate()
+      LogUtil.d(TAG, "onScale $moveDistance, zoom: ${chart.zoom}")
+    }
   }
   
   private fun onActionUp(event: MotionEvent?) {
     LogUtil.d(TAG, "onActionUp")
-//    startPointerDistance = 0.0f;
+    chart.zoomStartPoint = 0.0f;
   }
   
 }

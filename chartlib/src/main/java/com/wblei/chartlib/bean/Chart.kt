@@ -11,17 +11,28 @@ class Chart(context: Context?) {
   
   var context1: Context? = context
   
-  // 数据开始的位置
-  var dataStartPos: Int = 100
-    set(value) {
-      field = 0.coerceAtLeast(value).coerceAtMost(dataList.size)
-    }
-
+  
+  // 缩放比例
+  var zoom: Int = 5
+  
+  // 缩放起始点
+  var zoomStartPoint: Float = 0.0f
+  
+  // 一次加载到页面中的数据长度
+  var dataSize: Int = zoom * 10
+  
   // 数据结束的位置
   var dataEndPos: Int = 150
     set(value) {
       field = dataSize.coerceAtLeast(dataList.size.coerceAtMost(value))
     }
+  
+  // 数据开始的位置
+  var dataStartPos: Int = dataEndPos - dataSize
+    set(value) {
+      field = 0.coerceAtLeast(value).coerceAtMost(dataList.size)
+    }
+  
   // 数据列表
   var dataList: MutableList<Kline> = mutableListOf()
     set(value) {
@@ -29,14 +40,6 @@ class Chart(context: Context?) {
       dataList.addAll(value)
     }
   
-  // 缩放比例
-  var zoom: Float = 1f
-  
-  //
-  var startPointerDistance: Float = 0.0f
-  
-  // 一次加载到页面中的数据长度
-  var dataSize: Int = 50
   // 每个蜡烛图的宽度
   var stickWidth: Double = 0.0
 
