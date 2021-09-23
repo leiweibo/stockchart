@@ -12,4 +12,8 @@ object ChartHelper {
     val y = event.getY(0) - event.getY(1)
     return Math.sqrt((x * x + y * y).toDouble()).toFloat()
   }
+  
+  fun generateY(max: Double, min: Double, y: Double, chartHeight: Int):Double {
+    return (max - y) / (max - min) * chartHeight
+  }
 }
