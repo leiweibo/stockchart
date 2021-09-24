@@ -4,66 +4,67 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.view.GestureDetector
+import android.view.GestureDetector.OnGestureListener
 import android.view.MotionEvent
 import android.view.View
-import android.view.View.OnLongClickListener
-import com.wblei.chartlib.bean.Chart
+import com.wblei.chartlib.bean.ChartConfig
 import com.wblei.chartlib.util.LogUtil
 import kotlin.math.abs
 
 /**
  * K线图
  */
-class KChartView(context: Context?, attributes: AttributeSet) : View(context, attributes), OnLongClickListener {
+class KChartView(context: Context?, attributes: AttributeSet) : View(context, attributes), OnGestureListener {
   
   val TAG: String = KChartView::class.java.simpleName
   
-  private val chart: Chart = Chart(context)
+  private val chartConfig: ChartConfig = ChartConfig(context)
   private var startXPos: Float = 0.0f
   private val MINI_MOVE_DISTANCE: Int = if (width / 40 < 5) 5 else width / 50
+  private val gestureDetector: GestureDetector = GestureDetector(context, this)
+
   
   init {
     setBackgroundResource(android.R.color.white)
-    
-    setOnLongClickListener(this)
   }
   
   fun setupData(klineList: MutableList<Kline>) {
-    chart.dataList = klineList
+    chartConfig.dataList = klineList
     invalidate()
   }
   
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-    chart.chartWidth = measuredWidth - paddingLeft - paddingRight
-    chart.chartHeight = measuredHeight - paddingTop - paddingBottom
+    chartConfig.chartWidth = measuredWidth - paddingLeft - paddingRight
+    chartConfig.chartHeight = measuredHeight - paddingTop - paddingBottom
     
-    chart.stickWidth =
-      (chart.chartWidth - (chart.dataSize - 1) * chart.spaceWidth).toDouble() / chart.dataSize
+    chartConfig.stickWidth =
+      (chartConfig.chartWidth - (chartConfig.dataSize - 1) * chartConfig.spaceWidth).toDouble() / chartConfig.dataSize
   }
   
   override fun onDraw(canvas: Canvas?) {
     super.onDraw(canvas)
-    if (chart.dataList.size == 0) {
+    if (chartConfig.dataList.size == 0) {
       return;
     }
     
-    val (min, max) = chart.getMinAndMax()
+    val (min, max) = chartConfig.getMinAndMax()
     
-    for (i in chart.dataStartPos until chart.dataEndPos) {
-      val bean = chart.dataList[i]
-      if (chart.zoom < 10) {
-        val left = (i - chart.dataStartPos) * (chart.stickWidth + chart.spaceWidth)
-        val right = left + chart.stickWidth
-        val top = ChartHelper.generateY(max, min, bean.close, chart.chartHeight)
-        val bottom = ChartHelper.generateY(max, min, bean.open, chart.chartHeight)
+    for (i in chartConfig.dataStartPos until chartConfig.dataEndPos) {
+      val bean = chartConfig.dataList[i]
+      if (chartConfig.zoom < 10) {
+        val left = (i - chartConfig.dataStartPos) * (chartConfig.stickWidth + chartConfig.spaceWidth)
+        val right = left + chartConfig.stickWidth
+        val top = ChartHelper.generateY(max, min, bean.close, chartConfig.chartHeight)
+        val bottom = ChartHelper.generateY(max, min, bean.open, chartConfig.chartHeight)
   
         if (bean.close > bean.open) { // 阳线，红色不填充
-          chart.paintColor = R.color.color_ff4c4f
-          chart.paintStyle = Paint.Style.STROKE
+          chartConfig.paintColor = R.color.color_ff4c4f
+          chartConfig.paintStyle = Paint.Style.STROKE
         } else {  // 阴线，绿色填充
-          chart.paintColor = R.color.color_1dbf69
-          chart.paintStyle = Paint.Style.FILL
+          chartConfig.paintColor = R.color.color_1dbf69
+          chartConfig.paintStyle = Paint.Style.FILL
         }
   
         canvas?.drawRect(
@@ -71,31 +72,59 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
           top.toFloat(),
           right.toFloat(),
           bottom.toFloat(),
-          chart.paint
+          chartConfig.paint
         )
   
-        var startX = (left.toFloat() + (chart.stickWidth / 2.0f)).toFloat()
-        var startY = ChartHelper.generateY(max, min, bean.high, chart.chartHeight)
+        var startX = (left.toFloat() + (chartConfig.stickWidth / 2.0f)).toFloat()
+        var startY = ChartHelper.generateY(max, min, bean.high, chartConfig.chartHeight)
         var stopX = startX
         var stopY = top
         // 画上影线
-        canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chart.paint)
+        canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chartConfig.paint)
   
         startY = bottom
-        stopY = ChartHelper.generateY(max, min, bean.low, chart.chartHeight)
+        stopY = ChartHelper.generateY(max, min, bean.low, chartConfig.chartHeight)
         // 画下影线
-        canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chart.paint)
+        canvas?.drawLine(startX, startY.toFloat(), stopX, stopY.toFloat(), chartConfig.paint)
       } else {
-        if (i - chart.dataStartPos > 0) {
-          val preBean = chart.dataList[i - 1]
-          var startX = (i - chart.dataStartPos - 1) * (chart.stickWidth + chart.spaceWidth).toFloat()
-          var stopX = (i - chart.dataStartPos) * (chart.stickWidth + chart.spaceWidth).toFloat()
-          var startY = ChartHelper.generateY(max, min, preBean.close, chart.chartHeight).toFloat()
-          var stopY = ChartHelper.generateY(max, min, bean.close, chart.chartHeight).toFloat()
-          canvas?.drawLine(startX, startY, stopX, stopY, chart.paint)
+        if (i - chartConfig.dataStartPos > 0) {
+          val preBean = chartConfig.dataList[i - 1]
+          var startX = (i - chartConfig.dataStartPos - 1) * (chartConfig.stickWidth + chartConfig.spaceWidth).toFloat()
+          var stopX = (i - chartConfig.dataStartPos) * (chartConfig.stickWidth + chartConfig.spaceWidth).toFloat()
+          var startY = ChartHelper.generateY(max, min, preBean.close, chartConfig.chartHeight).toFloat()
+          var stopY = ChartHelper.generateY(max, min, bean.close, chartConfig.chartHeight).toFloat()
+          canvas?.drawLine(startX, startY, stopX, stopY, chartConfig.paint)
         }
       }
-      
+    }
+    if (chartConfig.showCrossLine) {
+      // 横十字线
+      val horStartX = 0
+      val horStartY = ChartHelper.generateY(max, min, chartConfig.dataList[chartConfig.crossIndex].close, chartConfig.chartHeight)
+      val horStopX = chartConfig.chartWidth
+      var horStopY = ChartHelper.generateY(max, min, chartConfig.dataList[chartConfig.crossIndex].close, chartConfig.chartHeight)
+        LogUtil.d(TAG, "画 --- 十字线")
+        canvas?.drawLine(
+          horStartX.toFloat(),
+          horStartY!!.toFloat(),
+          horStopX?.toFloat(),
+          horStopY!!.toFloat(),
+          chartConfig.paint
+        )
+    
+      LogUtil.d(TAG, "画 ||| 十字线")
+      // 竖十字线
+      var verStartX = chartConfig.crossPointX
+      val verStartY = 0.0f
+      var verStopX = chartConfig.crossPointX
+      val verStopY = chartConfig.chartHeight
+      canvas?.drawLine(
+        verStartX!!.toFloat(),
+        verStartY,
+        verStopX!!.toFloat(),
+        verStopY.toFloat(),
+        chartConfig.paint
+      )
     }
   }
   
@@ -106,7 +135,7 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
       MotionEvent.ACTION_MOVE -> onActionMove(event)
       MotionEvent.ACTION_UP -> onActionUp(event)
     }
-    
+    gestureDetector.onTouchEvent(event)
     return true
   }
   
@@ -118,59 +147,109 @@ class KChartView(context: Context?, attributes: AttributeSet) : View(context, at
    * 放大缩小处理，这个在onTouch事件里面，根据pointerCount来判断是否双指缩放的操作
    */
   private fun onActionMove(event: MotionEvent?) {
-    if (event?.pointerCount == 1) {
-      
-      // 拖动距离
-      val dragDistance = event.x - startXPos
-      var dragRectCnt = (dragDistance / chart.stickWidth).toInt()
-      if (abs(dragRectCnt) >= 1) {
-        chart.dataEndPos -= dragRectCnt
-        chart.dataStartPos = chart.dataEndPos - chart.dataSize
+    if (chartConfig.showCrossLine) {
+      if (event?.pointerCount == 1) {
+        val dragDistance = event.x - startXPos
+        var dragRectCnt = (dragDistance / chartConfig.stickWidth).toInt()
+        if (abs(dragRectCnt) >= 1) {
+          chartConfig.crossPointX = event?.x.toDouble()
+          startXPos = event.x
+          LogUtil.d(TAG, "execute invalidate in onAction move, showCross and point count is 1")
+          invalidate()
+        }
+      }
+    } else {
+      if (event?.pointerCount == 1) {
+    
+        // 拖动距离
+        val dragDistance = event.x - startXPos
+        var dragRectCnt = (dragDistance / chartConfig.stickWidth).toInt()
+        if (abs(dragRectCnt) >= 1) {
+          chartConfig.dataEndPos -= dragRectCnt
+          chartConfig.dataStartPos = chartConfig.dataEndPos - chartConfig.dataSize
+          LogUtil.d(
+            TAG,
+            "Dragging the chart， distance: $dragDistance, dragRectCnt: $dragRectCnt, dataStartPos: ${chartConfig.dataStartPos}, dataEndPos: ${chartConfig.dataEndPos}"
+          )
+          // 对于上次已经计算过的点，重新赋值
+          startXPos = event.x
+          LogUtil.d(TAG, "execute invalidate in onAction move, drag the chat and point count is 1")
+          invalidate()
+        }
+      } else if (event?.pointerCount == 2) {
+        val moveDistance = ChartHelper.calculateDistance(event)
+    
+        if (moveDistance < MINI_MOVE_DISTANCE) return
+    
+        if (chartConfig.zoomStartPoint > 0 && moveDistance > chartConfig.zoomStartPoint) {
+          // 放大，zoom--操作
+          chartConfig.zoom = chartConfig.zoom - 1
+          if (chartConfig.zoom < 1) {
+            chartConfig.zoom = chartConfig.zoom.coerceAtLeast(1)
+            // todo break the loop.
+          }
+        } else if (moveDistance < chartConfig.zoomStartPoint) {
+          // 缩小，zoom++操作
+          chartConfig.zoom = chartConfig.zoom + 1
+          if (chartConfig.zoom > 10) {
+            chartConfig.zoom = chartConfig.zoom.coerceAtMost(10)
+            // todo break the loop.
+          }
+        }
+        chartConfig.zoomStartPoint = moveDistance
         LogUtil.d(
           TAG,
-          "Dragging the chart， distance: $dragDistance, dragRectCnt: $dragRectCnt, dataStartPos: ${chart.dataStartPos}, dataEndPos: ${chart.dataEndPos}"
+          "onScale $moveDistance, zoom: ${chartConfig.zoom}, dataSize: ${chartConfig.dataSize}, dataStartPos: ${chartConfig.dataStartPos}, dataEndPos: ${chartConfig.dataEndPos}"
         )
-        // 对于上次已经计算过的点，重新赋值
-        startXPos = event.x
+        LogUtil.d(TAG, "execute invalidate in onAction move, drag the chat and point count is 2")
+        invalidate()
       }
-      
-      invalidate()
-    } else if (event?.pointerCount == 2) {
-      val moveDistance = ChartHelper.calculateSpace(event)
-
-      if (moveDistance < MINI_MOVE_DISTANCE) return
-
-      if (chart.zoomStartPoint > 0 && moveDistance > chart.zoomStartPoint) {
-        // 放大，zoom--操作
-        chart.zoom = chart.zoom - 1
-        if (chart.zoom < 1) {
-          chart.zoom = chart.zoom.coerceAtLeast(1)
-          // todo break the loop.
-        }
-      } else if (moveDistance < chart.zoomStartPoint) {
-        // 缩小，zoom++操作
-        chart.zoom = chart.zoom + 1
-        if (chart.zoom > 10) {
-          chart.zoom = chart.zoom.coerceAtMost(10)
-          // todo break the loop.
-        }
-      }
-      chart.zoomStartPoint = moveDistance
-      invalidate()
-      LogUtil.d(
-        TAG,
-        "onScale $moveDistance, zoom: ${chart.zoom}, dataSize: ${chart.dataSize}, dataStartPos: ${chart.dataStartPos}, dataEndPos: ${chart.dataEndPos}"
-      )
     }
   }
   
   private fun onActionUp(event: MotionEvent?) {
     LogUtil.d(TAG, "onActionUp")
-    chart.zoomStartPoint = 0.0f;
+    chartConfig.showCrossLine = false
+    chartConfig.zoomStartPoint = 0.0f
+    invalidate()
   }
   
-  override fun onLongClick(v: View?): Boolean {
-    LogUtil.d(TAG, "OnLong Click")
-    return true
+  
+  override fun onDown(e: MotionEvent?): Boolean {
+    return false
+  }
+  
+  override fun onShowPress(e: MotionEvent?) {
+  
+  }
+  
+  override fun onSingleTapUp(e: MotionEvent?): Boolean {
+    return false
+  }
+  
+  override fun onScroll(
+    e1: MotionEvent?,
+    e2: MotionEvent?,
+    distanceX: Float,
+    distanceY: Float
+  ): Boolean {
+    return false
+  }
+  
+  override fun onLongPress(e: MotionEvent?) {
+    LogUtil.d(TAG, "OnLongPress...")
+    chartConfig.showCrossLine = true
+    chartConfig.crossPointX = e?.x?.toDouble()
+    invalidate()
+    
+  }
+  
+  override fun onFling(
+    e1: MotionEvent?,
+    e2: MotionEvent?,
+    velocityX: Float,
+    velocityY: Float
+  ): Boolean {
+    return false
   }
 }

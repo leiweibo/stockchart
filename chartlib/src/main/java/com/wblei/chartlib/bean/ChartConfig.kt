@@ -4,10 +4,12 @@ import android.content.Context
 import android.graphics.Paint
 import android.graphics.Paint.Style
 import androidx.core.content.ContextCompat
+import com.wblei.chartlib.ChartHelper
 import com.wblei.chartlib.Kline
 import com.wblei.chartlib.util.ChartUtil
+import kotlin.math.roundToInt
 
-class Chart(context: Context?) {
+class ChartConfig(context: Context?) {
   
   var context1: Context? = context
   
@@ -73,6 +75,31 @@ class Chart(context: Context?) {
   
   var paint: Paint = Paint(Paint.ANTI_ALIAS_FLAG)
   
+  // 是否显示十字线，长按之后显示
+  var showCrossLine = false
+  
+  // 横十字线X
+  var crossPointX: Double? = 0.0
+    set(value) {
+      field = value
+      var index = field?.div((stickWidth + spaceWidth))?.roundToInt()
+      if (index != null) {
+        crossIndex = index + dataStartPos
+      }
+    }
+    get() {
+      var index = field?.div((stickWidth + spaceWidth))?.roundToInt()
+      return index?.times((stickWidth + spaceWidth))?.plus(stickWidth / 2)
+    }
+  
+  var crossIndex: Int = 0
+//  // 竖十字线X
+//  var crossPointY: Double? = 0.0
+//    get() {
+//      var index = field?.div((stickWidth + spaceWidth))?.toInt()
+//      return dataList[dataStartPos + index!!].close
+//    }
+//
   /**
    * 获取当前位置数组中，最大值和最小值，用来计算画蜡烛图的最高和最低点
    */
